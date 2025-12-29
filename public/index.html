@@ -1,140 +1,66 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
 <title>RECON</title>
-
 <style>
-*{box-sizing:border-box;font-family:monospace}
-body{
-margin:0;height:100vh;
-background:radial-gradient(circle at top,#07140d,#000);
-display:flex;align-items:center;justify-content:center;
-color:#00ff9c;overflow:hidden
-}
-header{
-position:absolute;top:20px;right:30px;
-display:flex;align-items:center;gap:8px;
-cursor:pointer
-}
-.name{
-font-size:20px;font-weight:bold;
-color:#00ff9c;
-text-shadow:0 0 10px #00ff9c,0 0 30px #00ff9c;
-animation:glow 2s infinite alternate;
-white-space:nowrap
-}
-.check{
-font-size:16px;
-color:#00ff9c;
-text-shadow:0 0 10px #00ff9c
-}
-@keyframes glow{
-from{text-shadow:0 0 10px #00ff9c}
-to{text-shadow:0 0 35px #00ff9c}
-}
-.container{
-width:520px;padding:30px;
-background:rgba(0,0,0,.65);
-backdrop-filter:blur(16px);
-border-radius:18px;
-box-shadow:0 0 50px rgba(0,255,156,.25)
-}
-input{
-width:100%;padding:14px;margin-top:15px;
-background:rgba(0,0,0,.75);
-border:1px solid #00ff9c55;
-border-radius:10px;color:#00ff9c
-}
-button{
-margin-top:20px;width:100%;padding:14px;
-border-radius:50px;border:none;cursor:pointer;
-background:linear-gradient(145deg,#00ff9c,#00cc7a);
-color:#00150c;box-shadow:0 0 30px #00ff9c
-}
-pre{
-margin-top:25px;padding:15px;
-background:rgba(0,0,0,.8);
-border-radius:12px;white-space:pre-wrap
-}
+body{margin:0;font-family:monospace;background:#000;color:#00ff9c}
+.dark{background:#000;color:#00ff9c}
+.light{background:#f0f0f0;color:#000}
+header{position:absolute;top:15px;right:20px;cursor:pointer}
+.container{max-width:520px;margin:80px auto;padding:20px;background:#050;border-radius:12px}
+button,input{width:100%;margin-top:10px;padding:10px}
+pre{white-space:pre-wrap}
 </style>
 </head>
-
-<body>
+<body class="dark">
 
 <header onclick="window.open('https://github.com/beatcodess','_blank')">
-  <div class="name" id="type"></div>
-  <div class="check">✔</div>
+<span id="name"></span> ✔
 </header>
 
 <div class="container">
-  <h2 style="text-align:center">RECON</h2>
-  <input id="target" placeholder="IP or Hostname">
-  <button onclick="run()">Run Recon</button>
-  <pre id="out"></pre>
+<h2>RECON</h2>
+<input id="target" placeholder="IP or Hostname">
+<button onclick="run()">Run Recon</button>
+<button onclick="toggle()">Toggle Theme</button>
+<button onclick="exportData()">Export Report</button>
+<pre id="out"></pre>
 </div>
 
 <audio id="bgm" loop></audio>
 
 <script>
-const text="beatcodes";
-let i=0,dir=1;
-function typeLoop(){
-  document.getElementById("type").textContent=text.slice(0,i);
-  if(i===text.length) dir=-1;
-  if(i===0) dir=1;
-  i+=dir;
-  setTimeout(typeLoop,150);
-}
-typeLoop();
+const name="beatcodes";
+let i=0,d=1;
+setInterval(()=>{
+  document.getElementById("name").textContent=name.slice(0,i);
+  if(i===name.length)d=-1;if(i===0)d=1;i+=d;
+},150);
 
 const bgm=document.getElementById("bgm");
 bgm.src="https://files.catbox.moe/q8n7n4.mp3";
-document.addEventListener("click",()=>{if(bgm.paused)bgm.play()},{once:true});
+document.addEventListener("click",()=>bgm.play(),{once:true});
+
+let last=null;
 
 async function run(){
-const t=document.getElementById("target").value.trim();
-const o=document.getElementById("out");
-if(!t)return;
-o.textContent="Running reconnaissance...";
+  const t=document.getElementById("target").value;
+  const r=await fetch("/api/recon",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({target:t})});
+  last=await r.json();
+  document.getElementById("out").textContent=JSON.stringify(last,null,2);
+}
 
-const r=await fetch("/api/recon",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({target:t})
-});
-const d=await r.json();
+function exportData(){
+  if(!last)return;
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([JSON.stringify(last,null,2)],{type:"application/json"}));
+  a.download="recon-report.json";
+  a.click();
+}
 
-o.textContent=
-`TARGET
-------
-${d.target}
-${d.ip}
-
-GEOLOCATION
------------
-City       : ${d.geo.city}
-Region     : ${d.geo.region}
-Country    : ${d.geo.country} (${d.geo.country_code})
-Latitude   : ${d.geo.lat}
-Longitude  : ${d.geo.lon}
-Timezone   : ${d.geo.timezone}
-
-NETWORK
--------
-ISP        : ${d.isp}
-ASN        : ${d.asn}
-
-PRIVACY
--------
-VPN        : ${d.privacy.vpn}
-TOR        : ${d.privacy.tor}
-Proxy      : ${d.privacy.proxy}
-Hosting    : ${d.privacy.hosting}
-
-Timestamp
----------
-${d.timestamp}`;
+function toggle(){
+  document.body.className=document.body.className==="dark"?"light":"dark";
 }
 </script>
 
