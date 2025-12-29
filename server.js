@@ -9,21 +9,54 @@ app.use(express.static("public"));
 const isIP = (v) => /^[0-9.]+$/.test(v);
 
 async function geoLookup(ip) {
-  const r = await axios.get(`https://ipwho.is/${ip}`);
-  if (!r.data.success) throw new Error("geo fail");
+  try {
+    const r = await axios.get(`https://ipwho.is/${ip}`);
+    if (r.data?.success) {
+      return {
+        ip,
+        city: r.data.city || null,
+        region: r.data.region || null,
+        country: r.data.country || null,
+        latitude: r.data.latitude || null,
+        longitude: r.data.longitude || null,
+        isp: r.data.isp || null,
+        asn: r.data.connection?.asn || null,
+        org: r.data.connection?.org || null,
+        vpn: !!r.data.proxy,
+        hosting: !!r.data.hosting
+      };
+    }
+  } catch {}
+
+  try {
+    const r = await axios.get(`https://ipapi.co/${ip}/json/`);
+    return {
+      ip,
+      city: r.data.city || null,
+      region: r.data.region || null,
+      country: r.data.country_name || null,
+      latitude: r.data.latitude || null,
+      longitude: r.data.longitude || null,
+      isp: r.data.org || null,
+      asn: r.data.asn || null,
+      org: r.data.org || null,
+      vpn: false,
+      hosting: false
+    };
+  } catch {}
 
   return {
     ip,
-    city: r.data.city,
-    region: r.data.region,
-    country: r.data.country,
-    latitude: r.data.latitude,
-    longitude: r.data.longitude,
-    isp: r.data.isp,
-    asn: r.data.connection?.asn,
-    org: r.data.connection?.org,
-    vpn: r.data.proxy,
-    hosting: r.data.hosting
+    city: null,
+    region: null,
+    country: null,
+    latitude: null,
+    longitude: null,
+    isp: null,
+    asn: null,
+    org: null,
+    vpn: null,
+    hosting: null
   };
 }
 
