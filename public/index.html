@@ -40,12 +40,16 @@ header {
   backdrop-filter: blur(10px);
   border-radius: 15px;
   box-shadow: 0 0 20px rgba(255,255,255,0.4);
+  text-align: center;
 }
 
 input {
-  width: 100%;
+  width: 80%;
+  max-width: 300px;
   padding: 8px;
   font-size: 14px;
+  margin: 0 auto;
+  display: block;
   background: rgba(0,0,0,0.8);
   color: white;
   border: 1px solid white;
@@ -53,10 +57,12 @@ input {
 }
 
 button {
-  width: 100%;
+  width: 80%;
+  max-width: 300px;
   padding: 8px;
-  margin-top: 10px;
+  margin: 10px auto 0;
   font-size: 14px;
+  display: block;
   background: rgba(0,0,0,0.8);
   color: white;
   border: 1px solid white;
@@ -68,6 +74,7 @@ pre {
   white-space: pre-wrap;
   margin-top: 15px;
   font-size: 13px;
+  text-align: left;
   text-shadow: 0 0 4px white;
 }
 </style>
@@ -75,7 +82,7 @@ pre {
 
 <body>
 
-<header onclick="window.open('https://github.com/beatcodess','_blank')">
+<header onclick="window.open('https://guns.lol/beatcodes','_blank')">
   <span id="name"></span> ✔
 </header>
 
