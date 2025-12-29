@@ -3,12 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <title>RECON</title>
+
 <style>
 body {
   margin: 0;
   font-family: monospace;
   color: white;
-  background: url("https://files.catbox.moe/sm4udj.png") center/cover no-repeat fixed;
+  background: url("https://files.catbox.moe/sm4udj.png") center/contain no-repeat fixed;
+  background-color: black;
 }
 
 body::before {
@@ -31,7 +33,7 @@ header {
 }
 
 .container {
-  max-width: 600px;
+  max-width: 520px;
   margin: 90px auto;
   padding: 20px;
   background: rgba(0,0,0,0.6);
@@ -40,19 +42,32 @@ header {
   box-shadow: 0 0 20px rgba(255,255,255,0.4);
 }
 
-input, button {
+input {
   width: 100%;
-  padding: 10px;
-  margin-top: 10px;
+  padding: 8px;
+  font-size: 14px;
   background: rgba(0,0,0,0.8);
   color: white;
   border: 1px solid white;
   box-shadow: 0 0 8px rgba(255,255,255,0.3);
 }
 
+button {
+  width: 100%;
+  padding: 8px;
+  margin-top: 10px;
+  font-size: 14px;
+  background: rgba(0,0,0,0.8);
+  color: white;
+  border: 1px solid white;
+  box-shadow: 0 0 8px rgba(255,255,255,0.3);
+  cursor: pointer;
+}
+
 pre {
   white-space: pre-wrap;
   margin-top: 15px;
+  font-size: 13px;
   text-shadow: 0 0 4px white;
 }
 </style>
@@ -61,15 +76,15 @@ pre {
 <body>
 
 <header onclick="window.open('https://github.com/beatcodess','_blank')">
-<span id="name"></span> ✔
+  <span id="name"></span> ✔
 </header>
 
 <div class="container">
-<h2>RECON</h2>
-<input id="target" placeholder="IP or Hostname">
-<button onclick="run()">Run Recon</button>
-<button onclick="exportData()">Export JSON</button>
-<pre id="out"></pre>
+  <h2>RECON</h2>
+  <input id="target" placeholder="IP or Hostname">
+  <button onclick="run()">Run Recon</button>
+  <button onclick="exportData()">Export JSON</button>
+  <pre id="out"></pre>
 </div>
 
 <audio id="bgm" loop></audio>
@@ -77,6 +92,7 @@ pre {
 <script>
 const nameText = "beatcodes";
 let i = 0;
+
 setInterval(() => {
   i = (i + 1) % (nameText.length + 1);
   document.getElementById("name").textContent = nameText.slice(0, i);
@@ -89,12 +105,17 @@ document.addEventListener("click", () => bgm.play(), { once: true });
 let last = null;
 
 async function run() {
-  const t = document.getElementById("target").value;
+  const t = document.getElementById("target").value.trim();
+  if (!t) return;
+
+  document.getElementById("out").textContent = "Running recon...";
+
   const r = await fetch("/api/recon", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ target: t })
   });
+
   last = await r.json();
   document.getElementById("out").textContent =
     JSON.stringify(last, null, 2);
