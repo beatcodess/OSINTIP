@@ -7,17 +7,29 @@
 body {
   margin: 0;
   font-family: monospace;
-  background: radial-gradient(#001, #000);
-  color: #00ff9c;
+  color: white;
+  background: url("https://files.catbox.moe/sm4udj.png") center/cover no-repeat fixed;
 }
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(3px);
+  z-index: -1;
+}
+
 header {
   position: fixed;
   top: 15px;
   right: 20px;
-  cursor: pointer;
   font-size: 18px;
-  text-shadow: 0 0 10px #00ff9c;
+  cursor: pointer;
+  color: white;
+  text-shadow: 0 0 12px white;
 }
+
 .container {
   max-width: 600px;
   margin: 90px auto;
@@ -25,19 +37,23 @@ header {
   background: rgba(0,0,0,0.6);
   backdrop-filter: blur(10px);
   border-radius: 15px;
-  box-shadow: 0 0 20px #00ff9c;
+  box-shadow: 0 0 20px rgba(255,255,255,0.4);
 }
+
 input, button {
   width: 100%;
   padding: 10px;
   margin-top: 10px;
-  background: black;
-  color: #00ff9c;
-  border: 1px solid #00ff9c;
+  background: rgba(0,0,0,0.8);
+  color: white;
+  border: 1px solid white;
+  box-shadow: 0 0 8px rgba(255,255,255,0.3);
 }
+
 pre {
   white-space: pre-wrap;
   margin-top: 15px;
+  text-shadow: 0 0 4px white;
 }
 </style>
 </head>
@@ -59,38 +75,38 @@ pre {
 <audio id="bgm" loop></audio>
 
 <script>
-const nameText="beatcodes";
-let idx=0;
-setInterval(()=>{
-  idx=(idx+1)%(nameText.length+1);
-  document.getElementById("name").textContent=nameText.slice(0,idx);
-},200);
+const nameText = "beatcodes";
+let i = 0;
+setInterval(() => {
+  i = (i + 1) % (nameText.length + 1);
+  document.getElementById("name").textContent = nameText.slice(0, i);
+}, 200);
 
-const bgm=document.getElementById("bgm");
-bgm.src="https://files.catbox.moe/q8n7n4.mp3";
-document.addEventListener("click",()=>bgm.play(),{once:true});
+const bgm = document.getElementById("bgm");
+bgm.src = "https://files.catbox.moe/87e8gv.mp3";
+document.addEventListener("click", () => bgm.play(), { once: true });
 
-let last=null;
+let last = null;
 
-async function run(){
-  const t=document.getElementById("target").value;
-  const r=await fetch("/api/recon",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({target:t})
+async function run() {
+  const t = document.getElementById("target").value;
+  const r = await fetch("/api/recon", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ target: t })
   });
-  last=await r.json();
-  document.getElementById("out").textContent=
-    JSON.stringify(last,null,2);
+  last = await r.json();
+  document.getElementById("out").textContent =
+    JSON.stringify(last, null, 2);
 }
 
-function exportData(){
-  if(!last)return;
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(
-    new Blob([JSON.stringify(last,null,2)],{type:"application/json"})
+function exportData() {
+  if (!last) return;
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(
+    new Blob([JSON.stringify(last, null, 2)], { type: "application/json" })
   );
-  a.download="recon-report.json";
+  a.download = "recon-report.json";
   a.click();
 }
 </script>
