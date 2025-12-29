@@ -4,10 +4,7 @@
 <meta charset="utf-8">
 <title>RECON</title>
 
-<link
-  rel="stylesheet"
-  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
 <style>
 body{
@@ -21,10 +18,15 @@ body{
   max-width:520px;
   margin:40px auto;
   padding:20px;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(12px);
   background:rgba(0,0,0,.65);
-  border-radius:12px;
-  box-shadow:0 0 20px rgba(255,255,255,.2);
+  border-radius:14px;
+  box-shadow:0 0 18px rgba(255,255,255,.25);
+}
+
+h1{
+  text-align:center;
+  text-shadow:0 0 8px #fff;
 }
 
 input,button{
@@ -39,11 +41,6 @@ input,button{
 }
 
 button{cursor:pointer}
-
-h1{
-  text-align:center;
-  text-shadow:0 0 8px #fff;
-}
 
 pre{
   white-space:pre-wrap;
@@ -71,13 +68,11 @@ a{
 <a href="https://guns.lol/beatcodes" target="_blank">beatcodes ✔</a>
 
 <div id="wrap">
-<h1>RECON</h1>
-
-<input id="target" placeholder="Enter IP or Domain">
-<button onclick="run()">Run Recon</button>
-
-<pre id="out"></pre>
-<div id="map"></div>
+  <h1>RECON</h1>
+  <input id="target" placeholder="Enter IP or Domain">
+  <button onclick="run()">Run Recon</button>
+  <pre id="out"></pre>
+  <div id="map"></div>
 </div>
 
 <audio autoplay loop>
@@ -86,7 +81,7 @@ a{
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-let map;
+let map, marker, circle;
 
 async function run(){
   const t=document.getElementById("target").value;
@@ -98,19 +93,21 @@ async function run(){
     body:JSON.stringify({target:t})
   });
   const j=await r.json();
-
-  document.getElementById("out").textContent=
-    JSON.stringify(j,null,2);
+  document.getElementById("out").textContent=JSON.stringify(j,null,2);
 
   if(j.geo?.lat && j.geo?.lon){
     if(!map){
-      map=L.map("map").setView([j.geo.lat,j.geo.lon],8);
+      map=L.map("map").setView([j.geo.lat,j.geo.lon],7);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
     } else {
-      map.setView([j.geo.lat,j.geo.lon],8);
+      map.setView([j.geo.lat,j.geo.lon],7);
+      if(marker) map.removeLayer(marker);
+      if(circle) map.removeLayer(circle);
     }
-    L.circle([j.geo.lat,j.geo.lon],{
-      radius:50000,
+
+    marker=L.marker([j.geo.lat,j.geo.lon]).addTo(map);
+    circle=L.circle([j.geo.lat,j.geo.lon],{
+      radius: j.vpn_likelihood === "High" ? 80000 : 40000,
       color:"#fff",
       fillOpacity:0.15
     }).addTo(map);
