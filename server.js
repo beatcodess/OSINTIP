@@ -6,21 +6,22 @@ const app = express();
 app.use(express.json());
 app.use(express.static("public"));
 
-const isIP = (t) => /^[0-9.]+$/.test(t);
+const isIP = (v) => /^[0-9.]+$/.test(v);
 
-async function geo(ip) {
+async function geoLookup(ip) {
   const r = await axios.get(`https://ipwho.is/${ip}`);
   if (!r.data.success) throw new Error("geo fail");
+
   return {
     ip,
     city: r.data.city,
     region: r.data.region,
     country: r.data.country,
-    lat: r.data.latitude,
-    lon: r.data.longitude,
+    latitude: r.data.latitude,
+    longitude: r.data.longitude,
     isp: r.data.isp,
-    org: r.data.connection?.org,
     asn: r.data.connection?.asn,
+    org: r.data.connection?.org,
     vpn: r.data.proxy,
     hosting: r.data.hosting
   };
@@ -47,12 +48,12 @@ app.post("/api/recon", async (req, res) => {
       };
     }
 
-    const geoData = await geo(ip);
+    const geo = await geoLookup(ip);
 
     res.json({
       input: target,
       type: isIP(target) ? "ip" : "domain",
-      geo: geoData,
+      geo,
       dns: dnsData,
       timestamp: new Date().toISOString()
     });
@@ -61,4 +62,5 @@ app.post("/api/recon", async (req, res) => {
   }
 });
 
-app.listen(10000, () => console.log("Server running"));
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log("Server running on", PORT));
