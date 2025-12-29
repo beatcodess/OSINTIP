@@ -1,6 +1,6 @@
 {
   "name": "opsec-ip-info",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "main": "server.cjs",
   "scripts": {
     "start": "node server.cjs"
