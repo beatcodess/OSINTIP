@@ -1,141 +1,80 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
 <title>RECON</title>
 <style>
-* { box-sizing: border-box; font-family: monospace; }
 body {
-  margin: 0;
-  height: 100vh;
-  background: radial-gradient(circle at top, #0a1f14, #000);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #00ff9c;
-}
-header {
-  position: absolute;
-  top: 20px;
-  right: 30px;
-}
-header a {
-  color: #00ff9c;
-  text-decoration: none;
-  font-size: 18px;
-  text-shadow: 0 0 15px #00ff9c;
+  margin:0;height:100vh;display:flex;justify-content:center;align-items:center;
+  background:#000;color:#00ff9c;font-family:monospace
 }
 .container {
-  width: 460px;
-  padding: 30px;
-  background: rgba(0,0,0,.6);
-  backdrop-filter: blur(15px);
-  border-radius: 18px;
-  box-shadow: 0 0 40px rgba(0,255,156,.25);
+  width:480px;padding:30px;background:rgba(0,0,0,.65);
+  backdrop-filter:blur(14px);border-radius:18px;
+  box-shadow:0 0 40px rgba(0,255,156,.3)
 }
-h1 {
-  text-align: center;
-  letter-spacing: 3px;
-}
-input {
-  width: 100%;
-  padding: 14px;
-  margin-top: 15px;
-  background: rgba(0,0,0,.7);
-  border: 1px solid #00ff9c55;
-  border-radius: 10px;
-  color: #00ff9c;
+input,button {
+  width:100%;padding:14px;margin-top:12px;
+  background:#000;border:1px solid #00ff9c55;color:#00ff9c
 }
 button {
-  margin-top: 20px;
-  width: 100%;
-  padding: 14px;
-  border-radius: 50px;
-  border: none;
-  cursor: pointer;
-  background: linear-gradient(145deg,#00ff9c,#00cc7a);
-  color: #00150c;
-  box-shadow: 0 0 25px #00ff9c;
+  border-radius:40px;background:#00ff9c;color:#000;
+  box-shadow:0 0 20px #00ff9c
 }
-.output {
-  margin-top: 25px;
-  padding: 15px;
-  background: rgba(0,0,0,.75);
-  border-radius: 12px;
-  display: none;
-  white-space: pre-wrap;
-  animation: glow 2s infinite alternate;
-}
-@keyframes glow {
-  from { box-shadow: inset 0 0 15px rgba(0,255,156,.2); }
-  to { box-shadow: inset 0 0 30px rgba(0,255,156,.5); }
-}
+pre {margin-top:20px;white-space:pre-wrap}
+a {position:absolute;top:20px;right:30px;color:#00ff9c;text-decoration:none}
 </style>
 </head>
-
 <body>
 
-<header>
-  <a href="https://github.com/beatcodess" target="_blank">beatcodes</a>
-</header>
+<a href="https://github.com/beatcodess" target="_blank">beatcodes</a>
 
 <div class="container">
-  <h1>RECON</h1>
-  <input id="target" placeholder="IP or Hostname">
-  <button onclick="run()">Run Recon</button>
-  <div class="output" id="out"></div>
+<h2>RECON</h2>
+<input id="t" placeholder="IP or Host">
+<button onclick="go()">Run</button>
+<pre id="o"></pre>
 </div>
 
 <script>
-async function run() {
-  const t = document.getElementById("target").value.trim();
-  const o = document.getElementById("out");
-  if (!t) return;
-
-  o.style.display = "block";
-  o.textContent = "Running reconnaissance...";
-
-  const r = await fetch("/api/recon", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ target: t })
-  });
-
-  const d = await r.json();
-
-  o.textContent =
+async function go(){
+  const t=document.getElementById("t").value.trim();
+  if(!t)return;
+  const o=document.getElementById("o");
+  o.textContent="Running...";
+  const r=await fetch("/api/recon",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({target:t})});
+  const d=await r.json();
+  o.textContent=
 `TARGET
-------
-${d.target}
-${d.ip}
+${d.target} (${d.ip})
 
 NETWORK
--------
 Hostname : ${d.hostname}
 ISP      : ${d.isp}
-HTTP     : ${d.http}
 
-DNS INTEL
----------
-A     : ${d.dns.A.join(", ") || "None"}
-AAAA  : ${d.dns.AAAA.join(", ") || "None"}
-MX    : ${d.dns.MX.map(m => m.exchange).join(", ") || "None"}
-NS    : ${d.dns.NS.join(", ") || "None"}
+WEB
+HTTP     : ${d.http}
+TLS      : ${d.tls?.tls || "None"}
+Issuer   : ${d.tls?.issuer || "N/A"}
+Expiry   : ${d.tls?.valid_to || "N/A"}
+SelfSign : ${d.tls?.self_signed || false}
+
+DNS
+A     : ${d.dns.A.join(", ")||"None"}
+AAAA  : ${d.dns.AAAA.join(", ")||"None"}
+MX    : ${d.dns.MX.map(m=>m.exchange).join(", ")||"None"}
+NS    : ${d.dns.NS.join(", ")||"None"}
 SPF   : ${d.dns.SPF}
 DMARC : ${d.dns.DMARC}
 DNSSEC: ${d.dns.DNSSEC}
 
 HONEYPOT
---------
 Risk    : ${d.honeypot.score}
 Verdict : ${d.honeypot.verdict}
 Reasons : ${d.honeypot.reasons.join(", ")}
 
-Timestamp
----------
 ${d.timestamp}`;
 }
 </script>
-
 </body>
 </html>
