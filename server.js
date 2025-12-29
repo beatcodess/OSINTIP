@@ -6,83 +6,59 @@ const app = express();
 app.use(express.json());
 app.use(express.static("public"));
 
-async function safe(fn, fallback = null) {
-  try { return await fn(); } catch { return fallback; }
-}
+const isIP = (t) => /^[0-9.]+$/.test(t);
 
-async function geoLookup(ip) {
-  const who = await safe(() => axios.get(`https://ipwho.is/${ip}`));
-  if (who?.data?.success) {
-    return {
-      city: who.data.city || null,
-      region: who.data.region || null,
-      country: who.data.country || null,
-      lat: who.data.latitude || null,
-      lon: who.data.longitude || null,
-      isp: who.data.isp || null,
-      org: who.data.connection?.org || null,
-      asn: who.data.connection?.asn || null,
-      proxy: !!who.data.proxy,
-      hosting: !!who.data.hosting
-    };
-  }
-
-  const info = await safe(() => axios.get(`https://ipinfo.io/${ip}/json`));
-  if (info?.data) {
-    return {
-      city: info.data.city || null,
-      region: info.data.region || null,
-      country: info.data.country || null,
-      lat: info.data.loc?.split(",")[0] || null,
-      lon: info.data.loc?.split(",")[1] || null,
-      isp: info.data.org || null,
-      org: info.data.org || null,
-      asn: info.data.org || null,
-      proxy: false,
-      hosting: false
-    };
-  }
-
-  return {};
+async function geo(ip) {
+  const r = await axios.get(`https://ipwho.is/${ip}`);
+  if (!r.data.success) throw new Error("geo fail");
+  return {
+    ip,
+    city: r.data.city,
+    region: r.data.region,
+    country: r.data.country,
+    lat: r.data.latitude,
+    lon: r.data.longitude,
+    isp: r.data.isp,
+    org: r.data.connection?.org,
+    asn: r.data.connection?.asn,
+    vpn: r.data.proxy,
+    hosting: r.data.hosting
+  };
 }
 
 app.post("/api/recon", async (req, res) => {
-  const result = {
-    target: req.body.target || null,
-    ip: null,
-    geo: {},
-    dns: {},
-    services: {},
-    confidence: 0,
-    timestamp: new Date().toISOString()
-  };
+  const target = req.body.target?.trim();
+  if (!target) return res.json({ error: "Enter something" });
 
   try {
-    if (!result.target) return res.json(result);
+    let ip = target;
+    let dnsData = null;
 
-    result.ip = /[a-zA-Z]/.test(result.target)
-      ? (await dns.lookup(result.target)).address
-      : result.target;
+    if (!isIP(target)) {
+      const resolved = await dns.lookup(target);
+      ip = resolved.address;
 
-    result.geo = await geoLookup(result.ip);
+      dnsData = {
+        A: await dns.resolve(target, "A").catch(() => []),
+        AAAA: await dns.resolve(target, "AAAA").catch(() => []),
+        MX: await dns.resolveMx(target).catch(() => []),
+        NS: await dns.resolveNs(target).catch(() => []),
+        TXT: await dns.resolveTxt(target).catch(() => [])
+      };
+    }
 
-    result.dns.A = await safe(() => dns.resolve(result.target));
-    result.dns.MX = await safe(() => dns.resolveMx(result.target));
-    result.dns.NS = await safe(() => dns.resolveNs(result.target));
+    const geoData = await geo(ip);
 
-    result.services.web = result.dns.A ? "Likely" : "Unknown";
-    result.services.mail = result.dns.MX ? "Likely" : "Unknown";
-
-    let score = 100;
-    if (result.geo.proxy) score -= 25;
-    if (result.geo.hosting) score -= 20;
-    result.confidence = Math.max(score, 0);
-
-    return res.json(result);
+    res.json({
+      input: target,
+      type: isIP(target) ? "ip" : "domain",
+      geo: geoData,
+      dns: dnsData,
+      timestamp: new Date().toISOString()
+    });
   } catch {
-    return res.json(result);
+    res.json({ error: "Lookup failed" });
   }
 });
 
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log("Server running on", PORT));
+app.listen(10000, () => console.log("Server running"));
