@@ -8,18 +8,18 @@ app.use(express.static("public"));
 
 const isIP = v => /^[0-9.]+$/.test(v);
 
-/* -------- Tor Exit List -------- */
+/* -------- TOR EXIT LIST -------- */
 let torSet = new Set();
-let torLastFetch = 0;
+let torLast = 0;
 
 async function updateTor() {
-  if (Date.now() - torLastFetch < 6 * 60 * 60 * 1000) return;
+  if (Date.now() - torLast < 6 * 60 * 60 * 1000) return;
   try {
     const r = await axios.get("https://check.torproject.org/torbulkexitlist", { timeout: 8000 });
     torSet = new Set(
       r.data.split("\n").filter(l => l && !l.startsWith("#"))
     );
-    torLastFetch = Date.now();
+    torLast = Date.now();
   } catch {}
 }
 
@@ -64,12 +64,19 @@ async function geoLookup(ip) {
   return null;
 }
 
-/* -------- VPN LIKELIHOOD -------- */
+/* -------- VPN LIKELIHOOD (FIXED) -------- */
 function vpnLikelihood(geo) {
   if (!geo) return "Unknown";
-  if (geo.proxy || geo.hosting) return "High";
-  if (/amazon|google|microsoft|ovh|digitalocean|linode|hetzner/i.test(geo.org || ""))
-    return "High";
+
+  const dc =
+    /amazon|aws|google|microsoft|azure|ovh|digitalocean|linode|hetzner|vultr|leaseweb|choopa|m247|contabo|ionos/i;
+
+  if (geo.proxy) return "High";
+  if (geo.hosting) return "High";
+  if (dc.test(geo.org || "")) return "High";
+  if (dc.test(geo.isp || "")) return "High";
+  if (dc.test(geo.asn || "")) return "High";
+
   return "Low";
 }
 
