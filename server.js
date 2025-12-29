@@ -9,8 +9,7 @@ app.use(express.static("public"));
 
 const resolveIP = async t => {
   try {
-    const r = await dns.lookup(t);
-    return r.address;
+    return (await dns.lookup(t)).address;
   } catch {
     return t;
   }
@@ -25,60 +24,68 @@ const reverseDNS = async ip => {
 };
 
 const dnsIntel = async host => {
-  const out = {};
-  try { out.A = (await dns.resolve4(host)); } catch { out.A = []; }
-  try { out.AAAA = (await dns.resolve6(host)); } catch { out.AAAA = []; }
-  try { out.MX = (await dns.resolveMx(host)); } catch { out.MX = []; }
-  try { out.NS = (await dns.resolveNs(host)); } catch { out.NS = []; }
+  const d = {};
+  try { d.A = await dns.resolve4(host); } catch { d.A = []; }
+  try { d.AAAA = await dns.resolve6(host); } catch { d.AAAA = []; }
+  try { d.MX = await dns.resolveMx(host); } catch { d.MX = []; }
+  try { d.NS = await dns.resolveNs(host); } catch { d.NS = []; }
   try {
-    const txt = await dns.resolveTxt(host);
-    out.TXT = txt.flat();
-    out.SPF = out.TXT.some(v => v.includes("v=spf"));
-    out.DMARC = out.TXT.some(v => v.includes("dmarc"));
+    const txt = (await dns.resolveTxt(host)).flat();
+    d.TXT = txt;
+    d.SPF = txt.some(v => v.includes("v=spf"));
+    d.DMARC = txt.some(v => v.toLowerCase().includes("dmarc"));
   } catch {
-    out.TXT = [];
-    out.SPF = false;
-    out.DMARC = false;
+    d.TXT = [];
+    d.SPF = false;
+    d.DMARC = false;
   }
   try {
-    const ds = await dns.resolveDs(host);
-    out.DNSSEC = ds.length > 0;
+    d.DNSSEC = (await dns.resolveDs(host)).length > 0;
   } catch {
-    out.DNSSEC = false;
+    d.DNSSEC = false;
   }
-  return out;
+  return d;
 };
 
 const checkHTTP = ip =>
   new Promise(resolve => {
-    const req = https.get(
+    const r = https.get(
       { host: ip, timeout: 3000, rejectUnauthorized: false },
       () => resolve(true)
     );
-    req.on("error", () => resolve(false));
-    req.on("timeout", () => {
-      req.destroy();
+    r.on("error", () => resolve(false));
+    r.on("timeout", () => {
+      r.destroy();
       resolve(false);
     });
   });
 
-const honeypotScore = data => {
+const honeypotAnalysis = data => {
   let score = 0;
   let reasons = [];
+
   const org = (data.isp || "").toLowerCase();
   const host = (data.hostname || "").toLowerCase();
 
-  if (org.includes("amazon") || org.includes("google") || org.includes("microsoft"))
-    score += 20, reasons.push("Cloud infrastructure");
+  if (org.includes("amazon") || org.includes("google") || org.includes("microsoft")) {
+    score += 20;
+    reasons.push("Cloud infrastructure");
+  }
 
-  if (host.includes("static") || host.includes("compute") || host.includes("scan"))
-    score += 20, reasons.push("Generic PTR hostname");
+  if (host.includes("static") || host.includes("compute") || host.includes("scan")) {
+    score += 20;
+    reasons.push("Generic PTR hostname");
+  }
 
-  if (!data.http)
-    score += 30, reasons.push("No HTTP/S response");
+  if (!data.http) {
+    score += 30;
+    reasons.push("No HTTP/S response");
+  }
 
-  if (!data.city)
-    score += 10, reasons.push("Missing geolocation");
+  if (!data.city) {
+    score += 10;
+    reasons.push("Missing geolocation detail");
+  }
 
   const verdict =
     score >= 60 ? "Likely Honeypot" :
@@ -93,28 +100,28 @@ app.post("/api/recon", async (req, res) => {
     const target = req.body.target;
     const ip = await resolveIP(target);
 
-    const [i1, ptr, http, dnsdata] = await Promise.all([
+    const [ipinfo, ptr, http, dnsdata] = await Promise.all([
       axios.get(`https://ipinfo.io/${ip}/json`).then(r => r.data),
       reverseDNS(ip),
       checkHTTP(ip),
       dnsIntel(target)
     ]);
 
-    const honeypot = honeypotScore({
-      isp: i1.org,
-      hostname: i1.hostname || ptr,
-      city: i1.city,
+    const honeypot = honeypotAnalysis({
+      isp: ipinfo.org,
+      hostname: ipinfo.hostname || ptr,
+      city: ipinfo.city,
       http
     });
 
     res.json({
       target,
       ip,
-      hostname: i1.hostname || ptr,
-      isp: i1.org,
-      city: i1.city,
-      region: i1.region,
-      country: i1.country,
+      hostname: ipinfo.hostname || ptr,
+      isp: ipinfo.org,
+      city: ipinfo.city,
+      region: ipinfo.region,
+      country: ipinfo.country,
       http,
       dns: dnsdata,
       honeypot,
