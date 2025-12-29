@@ -29,6 +29,58 @@ async function getTLS(host) {
   });
 }
 
+async function geoLookup(ip) {
+  try {
+    const r = await axios.get(`https://ipwho.is/${ip}`);
+    if (r.data.success) {
+      return {
+        city: r.data.city,
+        region: r.data.region,
+        country: r.data.country,
+        lat: r.data.latitude,
+        lon: r.data.longitude,
+        timezone: r.data.timezone?.id,
+        isp: r.data.isp,
+        asn: r.data.connection?.asn,
+        org: r.data.connection?.org,
+        proxy: r.data.proxy || false,
+        hosting: r.data.hosting || false
+      };
+    }
+  } catch {}
+
+  try {
+    const r = await axios.get(`https://ipinfo.io/${ip}/json`);
+    return {
+      city: r.data.city,
+      region: r.data.region,
+      country: r.data.country,
+      lat: r.data.loc?.split(",")[0],
+      lon: r.data.loc?.split(",")[1],
+      timezone: r.data.timezone,
+      isp: r.data.org,
+      asn: r.data.org,
+      org: r.data.org,
+      proxy: false,
+      hosting: false
+    };
+  } catch {}
+
+  return {
+    city: null,
+    region: null,
+    country: null,
+    lat: null,
+    lon: null,
+    timezone: null,
+    isp: null,
+    asn: null,
+    org: null,
+    proxy: false,
+    hosting: false
+  };
+}
+
 app.post("/api/recon", async (req, res) => {
   try {
     let target = req.body.target;
@@ -38,22 +90,7 @@ app.post("/api/recon", async (req, res) => {
       ip = (await dns.lookup(target)).address;
     }
 
-    const geo = await axios.get(`https://ipwho.is/${ip}`);
-    if (!geo.data.success) throw "Geo lookup failed";
-
-    const geoData = {
-      city: geo.data.city,
-      region: geo.data.region,
-      country: geo.data.country,
-      lat: geo.data.latitude,
-      lon: geo.data.longitude,
-      timezone: geo.data.timezone?.id,
-      isp: geo.data.isp,
-      asn: geo.data.connection?.asn,
-      org: geo.data.connection?.org,
-      proxy: geo.data.proxy,
-      hosting: geo.data.hosting
-    };
+    const geo = await geoLookup(ip);
 
     const dnsInfo = {};
     try { dnsInfo.A = await dns.resolve(target); } catch {}
@@ -70,28 +107,28 @@ app.post("/api/recon", async (req, res) => {
     const cert = await getTLS(target);
 
     let cloud = "Unknown";
-    if (geoData.org?.match(/cloudflare/i)) cloud = "Cloudflare";
-    if (geoData.org?.match(/amazon|aws/i)) cloud = "AWS";
-    if (geoData.org?.match(/google/i)) cloud = "Google";
-    if (geoData.org?.match(/azure|microsoft/i)) cloud = "Azure";
-    if (geoData.org?.match(/digitalocean/i)) cloud = "DigitalOcean";
-    if (geoData.org?.match(/ovh/i)) cloud = "OVH";
+    if (geo.org?.match(/cloudflare/i)) cloud = "Cloudflare";
+    if (geo.org?.match(/amazon|aws/i)) cloud = "AWS";
+    if (geo.org?.match(/google/i)) cloud = "Google";
+    if (geo.org?.match(/azure|microsoft/i)) cloud = "Azure";
+    if (geo.org?.match(/digitalocean/i)) cloud = "DigitalOcean";
+    if (geo.org?.match(/ovh/i)) cloud = "OVH";
 
     let score = 100;
-    if (geoData.proxy) score -= 25;
-    if (geoData.hosting) score -= 20;
+    if (geo.proxy) score -= 25;
+    if (geo.hosting) score -= 20;
     if (torExit.has(ip)) score -= 40;
     if (cloud !== "Unknown") score -= 10;
 
     res.json({
       target,
       ip,
-      geo: geoData,
+      geo,
       cloud,
       privacy: {
-        vpn: geoData.proxy ? "Likely" : "No",
+        vpn: geo.proxy ? "Likely" : "No",
         tor: torExit.has(ip) ? "Yes" : "No",
-        hosting: geoData.hosting ? "Yes" : "No"
+        hosting: geo.hosting ? "Yes" : "No"
       },
       dns: dnsInfo,
       http_headers: headers,
