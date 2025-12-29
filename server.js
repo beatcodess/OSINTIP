@@ -2,25 +2,18 @@ import express from "express";
 import axios from "axios";
 import dns from "dns/promises";
 import https from "https";
+import tls from "tls";
 
 const app = express();
 app.use(express.json());
 app.use(express.static("public"));
 
 const resolveIP = async t => {
-  try {
-    return (await dns.lookup(t)).address;
-  } catch {
-    return t;
-  }
+  try { return (await dns.lookup(t)).address; } catch { return t; }
 };
 
 const reverseDNS = async ip => {
-  try {
-    return (await dns.reverse(ip)).join(", ");
-  } catch {
-    return null;
-  }
+  try { return (await dns.reverse(ip)).join(", "); } catch { return null; }
 };
 
 const dnsIntel = async host => {
@@ -39,53 +32,51 @@ const dnsIntel = async host => {
     d.SPF = false;
     d.DMARC = false;
   }
-  try {
-    d.DNSSEC = (await dns.resolveDs(host)).length > 0;
-  } catch {
-    d.DNSSEC = false;
-  }
+  try { d.DNSSEC = (await dns.resolveDs(host)).length > 0; }
+  catch { d.DNSSEC = false; }
   return d;
 };
 
 const checkHTTP = ip =>
-  new Promise(resolve => {
-    const r = https.get(
-      { host: ip, timeout: 3000, rejectUnauthorized: false },
-      () => resolve(true)
-    );
-    r.on("error", () => resolve(false));
-    r.on("timeout", () => {
-      r.destroy();
-      resolve(false);
-    });
+  new Promise(r => {
+    const q = https.get({ host: ip, timeout: 3000, rejectUnauthorized: false }, () => r(true));
+    q.on("error", () => r(false));
+    q.on("timeout", () => { q.destroy(); r(false); });
   });
 
-const honeypotAnalysis = data => {
+const tlsIntel = host =>
+  new Promise(resolve => {
+    const s = tls.connect(443, host, { servername: host, timeout: 3000 }, () => {
+      const c = s.getPeerCertificate();
+      resolve({
+        tls: s.getProtocol(),
+        issuer: c.issuer?.O || "Unknown",
+        valid_to: c.valid_to || "Unknown",
+        self_signed: c.issuer?.O === c.subject?.O
+      });
+      s.end();
+    });
+    s.on("error", () => resolve(null));
+    s.on("timeout", () => resolve(null));
+  });
+
+const honeypot = d => {
   let score = 0;
   let reasons = [];
+  const org = (d.isp || "").toLowerCase();
+  const host = (d.hostname || "").toLowerCase();
 
-  const org = (data.isp || "").toLowerCase();
-  const host = (data.hostname || "").toLowerCase();
+  if (org.includes("amazon") || org.includes("google") || org.includes("microsoft"))
+    score += 20, reasons.push("Cloud infrastructure");
 
-  if (org.includes("amazon") || org.includes("google") || org.includes("microsoft")) {
-    score += 20;
-    reasons.push("Cloud infrastructure");
-  }
+  if (host.includes("static") || host.includes("compute") || host.includes("scan"))
+    score += 20, reasons.push("Generic PTR hostname");
 
-  if (host.includes("static") || host.includes("compute") || host.includes("scan")) {
-    score += 20;
-    reasons.push("Generic PTR hostname");
-  }
+  if (!d.http)
+    score += 30, reasons.push("No HTTP/S service");
 
-  if (!data.http) {
-    score += 30;
-    reasons.push("No HTTP/S response");
-  }
-
-  if (!data.city) {
-    score += 10;
-    reasons.push("Missing geolocation detail");
-  }
+  if (!d.city)
+    score += 10, reasons.push("Missing geolocation");
 
   const verdict =
     score >= 60 ? "Likely Honeypot" :
@@ -100,14 +91,15 @@ app.post("/api/recon", async (req, res) => {
     const target = req.body.target;
     const ip = await resolveIP(target);
 
-    const [ipinfo, ptr, http, dnsdata] = await Promise.all([
+    const [ipinfo, ptr, http, dnsdata, tlsdata] = await Promise.all([
       axios.get(`https://ipinfo.io/${ip}/json`).then(r => r.data),
       reverseDNS(ip),
       checkHTTP(ip),
-      dnsIntel(target)
+      dnsIntel(target),
+      tlsIntel(target)
     ]);
 
-    const honeypot = honeypotAnalysis({
+    const h = honeypot({
       isp: ipinfo.org,
       hostname: ipinfo.hostname || ptr,
       city: ipinfo.city,
@@ -123,8 +115,9 @@ app.post("/api/recon", async (req, res) => {
       region: ipinfo.region,
       country: ipinfo.country,
       http,
+      tls: tlsdata,
       dns: dnsdata,
-      honeypot,
+      honeypot: h,
       timestamp: new Date().toISOString()
     });
   } catch {
