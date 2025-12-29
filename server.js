@@ -1,7 +1,6 @@
 import express from "express";
 import axios from "axios";
 import dns from "dns/promises";
-import https from "https";
 import tls from "tls";
 
 const app = express();
@@ -12,8 +11,10 @@ const torExit = new Set();
 
 (async () => {
   try {
-    const { data } = await axios.get("https://check.torproject.org/torbulkexitlist");
-    data.split("\n").forEach(i => torExit.add(i.trim()));
+    const { data } = await axios.get(
+      "https://check.torproject.org/torbulkexitlist"
+    );
+    data.split("\n").forEach(ip => ip && torExit.add(ip.trim()));
   } catch {}
 })();
 
@@ -37,9 +38,22 @@ app.post("/api/recon", async (req, res) => {
       ip = (await dns.lookup(target)).address;
     }
 
-    const geo = await axios.get(
-      `http://ip-api.com/json/${ip}?fields=status,country,regionName,city,lat,lon,timezone,isp,as,proxy,hosting`
-    );
+    const geo = await axios.get(`https://ipwho.is/${ip}`);
+    if (!geo.data.success) throw "Geo lookup failed";
+
+    const geoData = {
+      city: geo.data.city,
+      region: geo.data.region,
+      country: geo.data.country,
+      lat: geo.data.latitude,
+      lon: geo.data.longitude,
+      timezone: geo.data.timezone?.id,
+      isp: geo.data.isp,
+      asn: geo.data.connection?.asn,
+      org: geo.data.connection?.org,
+      proxy: geo.data.proxy,
+      hosting: geo.data.hosting
+    };
 
     const dnsInfo = {};
     try { dnsInfo.A = await dns.resolve(target); } catch {}
@@ -55,44 +69,38 @@ app.post("/api/recon", async (req, res) => {
 
     const cert = await getTLS(target);
 
-    const cloud =
-      geo.data.isp?.match(/cloudflare|aws|google|azure|digitalocean|ovh/i)?.[0] || "Unknown";
+    let cloud = "Unknown";
+    if (geoData.org?.match(/cloudflare/i)) cloud = "Cloudflare";
+    if (geoData.org?.match(/amazon|aws/i)) cloud = "AWS";
+    if (geoData.org?.match(/google/i)) cloud = "Google";
+    if (geoData.org?.match(/azure|microsoft/i)) cloud = "Azure";
+    if (geoData.org?.match(/digitalocean/i)) cloud = "DigitalOcean";
+    if (geoData.org?.match(/ovh/i)) cloud = "OVH";
 
     let score = 100;
-    if (geo.data.proxy) score -= 25;
-    if (geo.data.hosting) score -= 20;
+    if (geoData.proxy) score -= 25;
+    if (geoData.hosting) score -= 20;
     if (torExit.has(ip)) score -= 40;
     if (cloud !== "Unknown") score -= 10;
 
     res.json({
       target,
       ip,
-      geo: {
-        city: geo.data.city,
-        region: geo.data.regionName,
-        country: geo.data.country,
-        lat: geo.data.lat,
-        lon: geo.data.lon,
-        timezone: geo.data.timezone
-      },
-      isp: geo.data.isp,
-      asn: geo.data.as,
+      geo: geoData,
       cloud,
       privacy: {
-        vpn: geo.data.proxy ? "Likely" : "No",
+        vpn: geoData.proxy ? "Likely" : "No",
         tor: torExit.has(ip) ? "Yes" : "No",
-        hosting: geo.data.hosting ? "Yes" : "No"
+        hosting: geoData.hosting ? "Yes" : "No"
       },
       dns: dnsInfo,
       http_headers: headers,
-      tls: cert
-        ? {
-            issuer: cert.issuer?.O,
-            valid_from: cert.valid_from,
-            valid_to: cert.valid_to,
-            wildcard: cert.subject?.CN?.startsWith("*")
-          }
-        : null,
+      tls: cert ? {
+        issuer: cert.issuer?.O,
+        valid_from: cert.valid_from,
+        valid_to: cert.valid_to,
+        wildcard: cert.subject?.CN?.startsWith("*")
+      } : null,
       services: {
         web: headers.server ? "Yes" : "Unknown",
         mail: dnsInfo.MX ? "Yes" : "Unknown",
@@ -112,4 +120,4 @@ app.post("/api/recon", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 10000;
-app.listen(PORT, () => console.log("Running on", PORT));
+app.listen(PORT, () => console.log("Server running on", PORT));
