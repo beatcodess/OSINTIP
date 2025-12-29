@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Recon</title>
+<title>RECON</title>
 <style>
 * { box-sizing: border-box; font-family: monospace; }
 body {
@@ -26,7 +26,7 @@ header a {
   text-shadow: 0 0 15px #00ff9c;
 }
 .container {
-  width: 440px;
+  width: 460px;
   padding: 30px;
   background: rgba(0,0,0,.6);
   backdrop-filter: blur(15px);
@@ -76,7 +76,7 @@ button {
 <body>
 
 <header>
-  <a href="https://github.com/beatcodess" target="_blank">Beat codes</a>
+  <a href="https://github.com/beatcodess" target="_blank">beatcodes</a>
 </header>
 
 <div class="container">
@@ -104,20 +104,36 @@ async function run() {
   const d = await r.json();
 
   o.textContent =
-`Target        : ${d.target}
-IP Address    : ${d.ip}
-Hostname      : ${d.hostname}
-ISP / ASN     : ${d.isp}
-Cloud         : ${d.cloud}
+`TARGET
+------
+${d.target}
+${d.ip}
 
-City          : ${d.city}
-Region        : ${d.region}
-Country       : ${d.country}
-Coordinates   : ${d.location}
-Timezone      : ${d.timezone}
+NETWORK
+-------
+Hostname : ${d.hostname}
+ISP      : ${d.isp}
+HTTP     : ${d.http}
 
-Geo Confidence: ${d.confidence}
-Timestamp     : ${d.timestamp}`;
+DNS INTEL
+---------
+A     : ${d.dns.A.join(", ") || "None"}
+AAAA  : ${d.dns.AAAA.join(", ") || "None"}
+MX    : ${d.dns.MX.map(m => m.exchange).join(", ") || "None"}
+NS    : ${d.dns.NS.join(", ") || "None"}
+SPF   : ${d.dns.SPF}
+DMARC : ${d.dns.DMARC}
+DNSSEC: ${d.dns.DNSSEC}
+
+HONEYPOT
+--------
+Risk    : ${d.honeypot.score}
+Verdict : ${d.honeypot.verdict}
+Reasons : ${d.honeypot.reasons.join(", ")}
+
+Timestamp
+---------
+${d.timestamp}`;
 }
 </script>
 
