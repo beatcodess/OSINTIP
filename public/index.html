@@ -4,20 +4,24 @@
 <meta charset="UTF-8">
 <title>RECON</title>
 
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+
 <style>
 body {
   margin: 0;
   font-family: monospace;
   color: white;
-  background: url("https://files.catbox.moe/sm4udj.png") center/contain no-repeat fixed;
-  background-color: black;
+  background: url("https://files.catbox.moe/sm4udj.png") center/contain no-repeat fixed black;
 }
 
 body::before {
   content: "";
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.65);
+  background: rgba(0,0,0,.65);
   backdrop-filter: blur(3px);
   z-index: -1;
 }
@@ -28,7 +32,6 @@ header {
   right: 20px;
   font-size: 18px;
   cursor: pointer;
-  color: white;
   text-shadow: 0 0 12px white;
 }
 
@@ -36,108 +39,24 @@ header {
   max-width: 520px;
   margin: 90px auto;
   padding: 20px;
-  background: rgba(0,0,0,0.6);
+  background: rgba(0,0,0,.6);
   backdrop-filter: blur(10px);
   border-radius: 15px;
-  box-shadow: 0 0 20px rgba(255,255,255,0.4);
+  box-shadow: 0 0 20px rgba(255,255,255,.4);
   text-align: center;
 }
 
-input {
+input, button {
   width: 80%;
   max-width: 300px;
   padding: 8px;
-  font-size: 14px;
-  margin: 0 auto;
+  margin: 8px auto;
   display: block;
-  background: rgba(0,0,0,0.8);
+  background: rgba(0,0,0,.8);
   color: white;
   border: 1px solid white;
-  box-shadow: 0 0 8px rgba(255,255,255,0.3);
-}
-
-button {
-  width: 80%;
-  max-width: 300px;
-  padding: 8px;
-  margin: 10px auto 0;
-  font-size: 14px;
-  display: block;
-  background: rgba(0,0,0,0.8);
-  color: white;
-  border: 1px solid white;
-  box-shadow: 0 0 8px rgba(255,255,255,0.3);
-  cursor: pointer;
+  box-shadow: 0 0 8px rgba(255,255,255,.3);
 }
 
 pre {
-  white-space: pre-wrap;
-  margin-top: 15px;
-  font-size: 13px;
-  text-align: left;
-  text-shadow: 0 0 4px white;
-}
-</style>
-</head>
-
-<body>
-
-<header onclick="window.open('https://guns.lol/beatcodes','_blank')">
-  <span id="name"></span> ✔
-</header>
-
-<div class="container">
-  <h2>RECON</h2>
-  <input id="target" placeholder="IP or Hostname">
-  <button onclick="run()">Run Recon</button>
-  <button onclick="exportData()">Export JSON</button>
-  <pre id="out"></pre>
-</div>
-
-<audio id="bgm" loop></audio>
-
-<script>
-const nameText = "beatcodes";
-let i = 0;
-
-setInterval(() => {
-  i = (i + 1) % (nameText.length + 1);
-  document.getElementById("name").textContent = nameText.slice(0, i);
-}, 200);
-
-const bgm = document.getElementById("bgm");
-bgm.src = "https://files.catbox.moe/87e8gv.mp3";
-document.addEventListener("click", () => bgm.play(), { once: true });
-
-let last = null;
-
-async function run() {
-  const t = document.getElementById("target").value.trim();
-  if (!t) return;
-
-  document.getElementById("out").textContent = "Running recon...";
-
-  const r = await fetch("/api/recon", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ target: t })
-  });
-
-  last = await r.json();
-  document.getElementById("out").textContent =
-    JSON.stringify(last, null, 2);
-}
-
-function exportData() {
-  if (!last) return;
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(
-    new Blob([JSON.stringify(last, null, 2)], { type: "application/json" })
-  );
-  a.download = "recon-report.json";
-  a.click();
-}
-</script>
-
-</body>
-</html>
+ 
