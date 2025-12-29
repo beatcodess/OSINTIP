@@ -3,67 +3,118 @@
 <head>
 <meta charset="utf-8">
 <title>RECON</title>
+
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+
 <style>
 body{
-  background:#000 url("https://files.catbox.moe/sm4udj.png") center/cover no-repeat fixed;
+  margin:0;
+  background:url("https://files.catbox.moe/sm4udj.png") center/contain no-repeat fixed #000;
   color:#fff;
   font-family:Arial, sans-serif;
 }
-#box{
-  backdrop-filter: blur(10px);
-  background: rgba(0,0,0,.6);
-  border:1px solid #0f0;
-  width:520px;
-  margin:60px auto;
+
+#wrap{
+  max-width:520px;
+  margin:40px auto;
   padding:20px;
-  box-shadow:0 0 20px #0f0;
+  backdrop-filter: blur(10px);
+  background:rgba(0,0,0,.65);
+  border-radius:12px;
+  box-shadow:0 0 20px rgba(255,255,255,.2);
 }
+
 input,button{
-  width:100%;
+  display:block;
+  width:90%;
+  margin:10px auto;
   padding:10px;
   background:#000;
   color:#fff;
-  border:1px solid #0f0;
-  margin-top:8px;
+  border:1px solid #fff;
+  border-radius:6px;
 }
+
 button{cursor:pointer}
-pre{
-  white-space:pre-wrap;
-  margin-top:15px;
-}
+
 h1{
   text-align:center;
-  text-shadow:0 0 10px #0f0;
+  text-shadow:0 0 8px #fff;
 }
+
+pre{
+  white-space:pre-wrap;
+  font-size:13px;
+}
+
+#map{
+  height:260px;
+  margin-top:15px;
+  border-radius:8px;
+}
+
 a{
+  position:fixed;
+  top:10px;
+  right:15px;
   color:#fff;
   text-decoration:none;
-  float:right;
 }
 </style>
 </head>
+
 <body>
 
 <a href="https://guns.lol/beatcodes" target="_blank">beatcodes ✔</a>
 
-<div id="box">
+<div id="wrap">
 <h1>RECON</h1>
+
 <input id="target" placeholder="Enter IP or Domain">
 <button onclick="run()">Run Recon</button>
+
 <pre id="out"></pre>
+<div id="map"></div>
 </div>
 
 <audio autoplay loop>
   <source src="https://files.catbox.moe/87e8gv.mp3" type="audio/mpeg">
 </audio>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+let map;
+
 async function run(){
   const t=document.getElementById("target").value;
   document.getElementById("out").textContent="Running...";
-  const r=await fetch("/api/recon",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({target:t})});
+
+  const r=await fetch("/api/recon",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({target:t})
+  });
   const j=await r.json();
-  document.getElementById("out").textContent=JSON.stringify(j,null,2);
+
+  document.getElementById("out").textContent=
+    JSON.stringify(j,null,2);
+
+  if(j.geo?.lat && j.geo?.lon){
+    if(!map){
+      map=L.map("map").setView([j.geo.lat,j.geo.lon],8);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
+    } else {
+      map.setView([j.geo.lat,j.geo.lon],8);
+    }
+    L.circle([j.geo.lat,j.geo.lon],{
+      radius:50000,
+      color:"#fff",
+      fillOpacity:0.15
+    }).addTo(map);
+  }
 }
 </script>
 
