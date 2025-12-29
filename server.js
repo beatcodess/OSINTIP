@@ -1,6 +1,7 @@
 import express from "express";
 import axios from "axios";
 import dns from "dns/promises";
+import https from "https";
 
 const app = express();
 app.use(express.json());
@@ -23,50 +24,100 @@ const reverseDNS = async ip => {
   }
 };
 
-const ipinfo = async ip =>
-  (await axios.get(`https://ipinfo.io/${ip}/json`)).data;
-
-const ipapi = async ip =>
-  (await axios.get(`https://ipapi.co/${ip}/json/`)).data;
-
-const cloudDetect = org => {
-  const s = org?.toLowerCase() || "";
-  if (s.includes("amazon")) return "AWS";
-  if (s.includes("google")) return "GCP";
-  if (s.includes("microsoft")) return "Azure";
-  if (s.includes("cloudflare")) return "Cloudflare";
-  if (s.includes("akamai")) return "Akamai";
-  return "Unknown";
+const dnsIntel = async host => {
+  const out = {};
+  try { out.A = (await dns.resolve4(host)); } catch { out.A = []; }
+  try { out.AAAA = (await dns.resolve6(host)); } catch { out.AAAA = []; }
+  try { out.MX = (await dns.resolveMx(host)); } catch { out.MX = []; }
+  try { out.NS = (await dns.resolveNs(host)); } catch { out.NS = []; }
+  try {
+    const txt = await dns.resolveTxt(host);
+    out.TXT = txt.flat();
+    out.SPF = out.TXT.some(v => v.includes("v=spf"));
+    out.DMARC = out.TXT.some(v => v.includes("dmarc"));
+  } catch {
+    out.TXT = [];
+    out.SPF = false;
+    out.DMARC = false;
+  }
+  try {
+    const ds = await dns.resolveDs(host);
+    out.DNSSEC = ds.length > 0;
+  } catch {
+    out.DNSSEC = false;
+  }
+  return out;
 };
 
-const confidence = (a, b) => {
+const checkHTTP = ip =>
+  new Promise(resolve => {
+    const req = https.get(
+      { host: ip, timeout: 3000, rejectUnauthorized: false },
+      () => resolve(true)
+    );
+    req.on("error", () => resolve(false));
+    req.on("timeout", () => {
+      req.destroy();
+      resolve(false);
+    });
+  });
+
+const honeypotScore = data => {
   let score = 0;
-  if (a.city === b.city) score += 30;
-  if (a.region === b.region) score += 30;
-  if (a.country === b.country_name) score += 40;
-  return `${score}%`;
+  let reasons = [];
+  const org = (data.isp || "").toLowerCase();
+  const host = (data.hostname || "").toLowerCase();
+
+  if (org.includes("amazon") || org.includes("google") || org.includes("microsoft"))
+    score += 20, reasons.push("Cloud infrastructure");
+
+  if (host.includes("static") || host.includes("compute") || host.includes("scan"))
+    score += 20, reasons.push("Generic PTR hostname");
+
+  if (!data.http)
+    score += 30, reasons.push("No HTTP/S response");
+
+  if (!data.city)
+    score += 10, reasons.push("Missing geolocation");
+
+  const verdict =
+    score >= 60 ? "Likely Honeypot" :
+    score >= 35 ? "Suspicious" :
+    "Likely Active Service";
+
+  return { score: `${score}%`, verdict, reasons };
 };
 
 app.post("/api/recon", async (req, res) => {
   try {
     const target = req.body.target;
     const ip = await resolveIP(target);
-    const [i1, i2] = await Promise.all([ipinfo(ip), ipapi(ip)]);
-    const ptr = await reverseDNS(ip);
+
+    const [i1, ptr, http, dnsdata] = await Promise.all([
+      axios.get(`https://ipinfo.io/${ip}/json`).then(r => r.data),
+      reverseDNS(ip),
+      checkHTTP(ip),
+      dnsIntel(target)
+    ]);
+
+    const honeypot = honeypotScore({
+      isp: i1.org,
+      hostname: i1.hostname || ptr,
+      city: i1.city,
+      http
+    });
 
     res.json({
       target,
       ip,
       hostname: i1.hostname || ptr,
       isp: i1.org,
-      asn: i1.org?.split(" ")[0],
       city: i1.city,
       region: i1.region,
       country: i1.country,
-      location: i1.loc,
-      timezone: i1.timezone,
-      cloud: cloudDetect(i1.org),
-      confidence: confidence(i1, i2),
+      http,
+      dns: dnsdata,
+      honeypot,
       timestamp: new Date().toISOString()
     });
   } catch {
@@ -75,6 +126,4 @@ app.post("/api/recon", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () =>
-  console.log(`Server running on port ${PORT}`)
-);
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
