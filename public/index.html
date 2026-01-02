@@ -1,236 +1,207 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<title>RECON // TERMINAL</title>
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&display=swap" rel="stylesheet">
+<meta charset="UTF-8">
+<title>BEATCODES // ACCESS</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 
 <style>
-:root{
-  --neon:#00fff7;
-  --bg:#05070a;
-  --glass:rgba(10,15,20,.65);
-}
-
-/* RESET */
-*{box-sizing:border-box}
-
-/* BACKGROUND */
+*{box-sizing:border-box;margin:0;padding:0}
 body{
-  margin:0;
-  min-height:100vh;
-  background:
-    linear-gradient(transparent 95%, rgba(0,255,247,.08) 100%),
-    repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,255,247,.04) 3px
-    ),
-    var(--bg);
-  color:#eaffff;
+  background:#020403;
   font-family:"JetBrains Mono", monospace;
-  overflow-x:hidden;
+  color:#9affb2;
+  overflow:hidden;
 }
 
-/* ANIMATED GRID */
-body::before{
-  content:"";
+/* ================= INTRO ================= */
+
+#intro{
   position:fixed;
   inset:0;
-  background:
-    linear-gradient(90deg, rgba(0,255,247,.05) 1px, transparent 1px),
-    linear-gradient(rgba(0,255,247,.05) 1px, transparent 1px);
-  background-size:40px 40px;
-  animation:grid 18s linear infinite;
-  pointer-events:none;
+  background:radial-gradient(circle at center,#031a0c,#000);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:9999;
 }
 
-@keyframes grid{
+/* Rolling lock */
+#lock{
+  display:flex;
+  gap:8px;
+}
+
+.dial{
+  width:60px;
+  height:80px;
+  border-radius:10px;
+  background:rgba(0,255,120,.08);
+  backdrop-filter:blur(8px);
+  box-shadow:
+    inset 0 0 15px rgba(0,255,120,.35),
+    0 0 18px rgba(0,255,120,.25);
+  overflow:hidden;
+  position:relative;
+}
+
+.strip{
+  position:absolute;
+  width:100%;
+  animation:spin 0.15s linear infinite;
+}
+
+.strip span{
+  display:block;
+  height:80px;
+  text-align:center;
+  font-size:42px;
+  line-height:80px;
+  font-weight:700;
+}
+
+@keyframes spin{
   from{transform:translateY(0)}
-  to{transform:translateY(40px)}
+  to{transform:translateY(-800px)}
 }
 
-/* CONTAINER */
-#wrap{
+/* ================= DOORS ================= */
+
+.door{
+  position:fixed;
+  top:0;
+  width:50%;
+  height:100%;
+  background:linear-gradient(
+    to right,
+    #001b0a,
+    #003316
+  );
+  box-shadow:inset 0 0 40px rgba(0,255,120,.35);
+  z-index:9000;
+  transition:transform 1.6s cubic-bezier(.77,0,.18,1);
+}
+
+#leftDoor{left:0}
+#rightDoor{right:0}
+
+.open #leftDoor{transform:translateX(-100%)}
+.open #rightDoor{transform:translateX(100%)}
+
+/* ================= MAIN APP ================= */
+
+#app{
+  opacity:0;
+  transition:opacity 1s ease;
+  padding:60px;
+}
+
+.open #app{opacity:1}
+
+/* HUD GLASS */
+.panel{
   max-width:560px;
-  margin:60px auto;
-  padding:28px;
-  background:var(--glass);
-  backdrop-filter: blur(14px);
+  margin:auto;
+  padding:30px;
+  background:rgba(0,255,120,.07);
+  backdrop-filter:blur(14px);
   border-radius:18px;
   box-shadow:
-    0 0 25px rgba(0,255,247,.25),
-    inset 0 0 30px rgba(0,255,247,.08);
-  position:relative;
+    0 0 35px rgba(0,255,120,.35),
+    inset 0 0 25px rgba(0,255,120,.15);
 }
 
-/* HEADER */
+/* Meter */
+.meter{
+  margin-top:20px;
+  height:12px;
+  background:#001b0a;
+  border-radius:8px;
+  overflow:hidden;
+}
+
+.meter span{
+  display:block;
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,#00ff88,#7dffb3);
+  animation:load 2.5s ease forwards;
+}
+
+@keyframes load{
+  to{width:100%}
+}
+
 h1{
-  margin:0 0 18px;
   text-align:center;
   letter-spacing:4px;
-  font-weight:600;
-  color:var(--neon);
-  text-shadow:0 0 12px var(--neon);
+  color:#9affb2;
+  text-shadow:0 0 14px #00ff88;
 }
-
-/* STATUS DOT */
-h1::after{
-  content:"● ONLINE";
-  display:block;
-  font-size:11px;
-  letter-spacing:2px;
-  color:#7dfff9;
-  margin-top:6px;
-  animation:pulse 2s infinite;
-}
-
-@keyframes pulse{
-  0%,100%{opacity:.4}
-  50%{opacity:1}
-}
-
-/* INPUT */
-input{
-  width:100%;
-  padding:14px;
-  background:#020405;
-  color:#eaffff;
-  border:1px solid rgba(0,255,247,.35);
-  border-radius:10px;
-  outline:none;
-  box-shadow:inset 0 0 10px rgba(0,255,247,.15);
-}
-
-/* BUTTON */
-button{
-  width:100%;
-  margin-top:14px;
-  padding:14px;
-  border:none;
-  border-radius:10px;
-  background:linear-gradient(135deg, #00fff7, #008cff);
-  color:#000;
-  font-weight:600;
-  letter-spacing:2px;
-  cursor:pointer;
-  transition:.25s;
-}
-
-button:hover{
-  transform:translateY(-1px);
-  box-shadow:0 0 18px rgba(0,255,247,.8);
-}
-
-/* TERMINAL OUTPUT */
-pre{
-  margin-top:18px;
-  padding:16px;
-  min-height:120px;
-  background:#010304;
-  border-radius:10px;
-  font-size:13px;
-  line-height:1.5;
-  overflow:auto;
-  box-shadow:inset 0 0 18px rgba(0,255,247,.12);
-  position:relative;
-}
-
-/* SCANLINE */
-pre::after{
-  content:"";
-  position:absolute;
-  inset:0;
-  background:linear-gradient(
-    transparent 90%,
-    rgba(0,255,247,.08) 100%
-  );
-  animation:scan 3s linear infinite;
-  pointer-events:none;
-}
-
-@keyframes scan{
-  from{background-position:0 -100%}
-  to{background-position:0 100%}
-}
-
-/* MAP */
-#map{
-  height:260px;
-  margin-top:18px;
-  border-radius:12px;
-  overflow:hidden;
-  box-shadow:0 0 18px rgba(0,255,247,.25);
-}
-
-/* CREDIT */
-a{
-  position:fixed;
-  top:14px;
-  right:18px;
-  color:var(--neon);
-  text-decoration:none;
-  font-size:12px;
-  opacity:.7;
-}
-
-a:hover{opacity:1}
 </style>
 </head>
 
 <body>
 
-<a href="https://guns.lol/beatcodes" target="_blank">beatcodes</a>
-
-<div id="wrap">
-  <h1>RECON</h1>
-
-  <input id="target" placeholder="TARGET IP / DOMAIN">
-  <button onclick="run()">INITIATE SCAN</button>
-
-  <pre id="out">Awaiting target…</pre>
-  <div id="map"></div>
+<!-- INTRO -->
+<div id="intro">
+  <div id="lock"></div>
 </div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- DOORS -->
+<div id="leftDoor" class="door"></div>
+<div id="rightDoor" class="door"></div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="panel">
+    <h1>RECON ONLINE</h1>
+    <div class="meter"><span></span></div>
+  </div>
+</div>
+
 <script>
-let map, marker, circle;
+const text="BEATCODES";
+const lock=document.getElementById("lock");
 
-async function run(){
-  const t=document.getElementById("target").value;
-  const out=document.getElementById("out");
-  out.textContent="> Connecting...\n> Gathering intelligence...\n";
+/* Build rolling dials */
+[...text].forEach(char=>{
+  const d=document.createElement("div");
+  d.className="dial";
+  const strip=document.createElement("div");
+  strip.className="strip";
 
-  const r=await fetch("/api/recon",{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({target:t})
-  });
-
-  const j=await r.json();
-  out.textContent+=JSON.stringify(j,null,2);
-
-  if(j.geo?.lat && j.geo?.lon){
-    if(!map){
-      map=L.map("map").setView([j.geo.lat,j.geo.lon],7);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
-    }else{
-      map.setView([j.geo.lat,j.geo.lon],7);
-      if(marker) map.removeLayer(marker);
-      if(circle) map.removeLayer(circle);
-    }
-
-    marker=L.marker([j.geo.lat,j.geo.lon]).addTo(map);
-    circle=L.circle([j.geo.lat,j.geo.lon],{
-      radius: j.vpn_likelihood==="High"?90000:45000,
-      color:"#00fff7",
-      fillOpacity:.12
-    }).addTo(map);
+  for(let i=0;i<10;i++){
+    const s=document.createElement("span");
+    s.textContent=String.fromCharCode(65+Math.floor(Math.random()*26));
+    strip.appendChild(s);
   }
-}
+
+  const final=document.createElement("span");
+  final.textContent=char;
+  strip.appendChild(final);
+
+  d.appendChild(strip);
+  lock.appendChild(d);
+
+  setTimeout(()=>{
+    strip.style.animation="none";
+    strip.style.transform=`translateY(-${strip.children.length-1}00%)`;
+  },1200+Math.random()*400);
+});
+
+/* Sequence */
+setTimeout(()=>{
+  document.getElementById("intro").style.opacity="0";
+},2000);
+
+setTimeout(()=>{
+  document.body.classList.add("open");
+},2300);
+
+setTimeout(()=>{
+  document.getElementById("intro").remove();
+},3500);
 </script>
 
 </body>
