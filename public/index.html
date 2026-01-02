@@ -26,56 +26,39 @@ body{
   align-items:center;
   justify-content:center;
   z-index:9999;
+  transition:opacity .8s ease;
 }
 
-#lock{display:flex;gap:8px}
+#lock{
+  display:flex;
+  gap:10px;
+}
 
 .dial{
-  width:60px;
-  height:80px;
-  border-radius:10px;
+  width:64px;
+  height:86px;
+  border-radius:12px;
   background:rgba(0,255,120,.08);
-  backdrop-filter:blur(8px);
-  box-shadow:inset 0 0 15px rgba(0,255,120,.35),0 0 18px rgba(0,255,120,.25);
+  backdrop-filter:blur(10px);
+  box-shadow:
+    inset 0 0 18px rgba(0,255,120,.35),
+    0 0 20px rgba(0,255,120,.25);
   overflow:hidden;
 }
 
 .strip{
-  animation:spin .12s linear infinite;
+  position:relative;
+  transition:transform 1.2s cubic-bezier(.22,.61,.36,1);
 }
 
 .strip span{
   display:block;
-  height:80px;
-  line-height:80px;
+  height:86px;
+  line-height:86px;
   font-size:42px;
   text-align:center;
   font-weight:700;
 }
-
-@keyframes spin{
-  from{transform:translateY(0)}
-  to{transform:translateY(-800px)}
-}
-
-/* ================= DOORS ================= */
-
-.door{
-  position:fixed;
-  top:0;
-  width:50%;
-  height:100%;
-  background:linear-gradient(to right,#001b0a,#003316);
-  box-shadow:inset 0 0 40px rgba(0,255,120,.35);
-  z-index:9000;
-  transition:transform 1.6s cubic-bezier(.77,0,.18,1);
-}
-
-#leftDoor{left:0}
-#rightDoor{right:0}
-
-.open #leftDoor{transform:translateX(-100%)}
-.open #rightDoor{transform:translateX(100%)}
 
 /* ================= APP ================= */
 
@@ -83,11 +66,11 @@ body{
   opacity:0;
   transition:opacity 1s ease;
   padding:40px;
-  overflow:auto;
   height:100vh;
+  overflow:auto;
 }
 
-.open #app{opacity:1}
+.show #app{opacity:1}
 
 .panel{
   max-width:560px;
@@ -96,13 +79,14 @@ body{
   background:rgba(0,255,120,.07);
   backdrop-filter:blur(14px);
   border-radius:18px;
-  box-shadow:0 0 35px rgba(0,255,120,.35),inset 0 0 25px rgba(0,255,120,.15);
+  box-shadow:
+    0 0 35px rgba(0,255,120,.35),
+    inset 0 0 25px rgba(0,255,120,.15);
 }
 
 h1{
   text-align:center;
   letter-spacing:4px;
-  color:#9affb2;
   text-shadow:0 0 14px #00ff88;
 }
 
@@ -141,41 +125,20 @@ pre{
   overflow:hidden;
   box-shadow:0 0 18px rgba(0,255,120,.25);
 }
-
-.meter{
-  margin:16px 0;
-  height:10px;
-  background:#001b0a;
-  border-radius:6px;
-  overflow:hidden;
-}
-
-.meter span{
-  display:block;
-  height:100%;
-  width:0%;
-  background:linear-gradient(90deg,#00ff88,#9affb2);
-  animation:load 2.5s ease forwards;
-}
-
-@keyframes load{to{width:100%}}
 </style>
 </head>
 
 <body>
 
 <!-- INTRO -->
-<div id="intro"><div id="lock"></div></div>
-
-<!-- DOORS -->
-<div id="leftDoor" class="door"></div>
-<div id="rightDoor" class="door"></div>
+<div id="intro">
+  <div id="lock"></div>
+</div>
 
 <!-- APP -->
 <div id="app">
   <div class="panel">
     <h1>RECON ONLINE</h1>
-    <div class="meter"><span></span></div>
 
     <input id="target" placeholder="TARGET IP / DOMAIN">
     <button onclick="run()">INITIATE RECON</button>
@@ -188,58 +151,80 @@ pre{
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
-/* ===== INTRO LOGIC ===== */
-const text="BEATCODES";
-const lock=document.getElementById("lock");
+/* ================= BIKE LOCK LOGIC ================= */
 
-[...text].forEach(char=>{
-  const d=document.createElement("div");
-  d.className="dial";
-  const strip=document.createElement("div");
-  strip.className="strip";
+const word = "BEATCODES";
+const lock = document.getElementById("lock");
+const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const DIAL_HEIGHT = 86;
 
-  for(let i=0;i<12;i++){
-    const s=document.createElement("span");
-    s.textContent=String.fromCharCode(65+Math.random()*26|0);
+[...word].forEach((char, index) => {
+  const dial = document.createElement("div");
+  dial.className = "dial";
+
+  const strip = document.createElement("div");
+  strip.className = "strip";
+
+  // Build rolling letters (2 full rotations + target)
+  const rotations = 2;
+  for(let r=0;r<rotations;r++){
+    for(const l of letters){
+      const s = document.createElement("span");
+      s.textContent = l;
+      strip.appendChild(s);
+    }
+  }
+
+  const targetIndex = letters.indexOf(char);
+  for(let i=0;i<=targetIndex;i++){
+    const s = document.createElement("span");
+    s.textContent = letters[i];
     strip.appendChild(s);
   }
-  const final=document.createElement("span");
-  final.textContent=char;
-  strip.appendChild(final);
 
-  d.appendChild(strip);
-  lock.appendChild(d);
+  dial.appendChild(strip);
+  lock.appendChild(dial);
 
-  setTimeout(()=>{
-    strip.style.animation="none";
-    strip.style.transform=`translateY(-${(strip.children.length-1)*80}px)`;
-  },1000+Math.random()*400);
+  // Animate sequential stop
+  requestAnimationFrame(()=>{
+    const stopOffset = (strip.children.length - 1) * DIAL_HEIGHT;
+    setTimeout(()=>{
+      strip.style.transform = `translateY(-${stopOffset}px)`;
+    }, index * 180);
+  });
 });
 
-setTimeout(()=>document.getElementById("intro").style.opacity=0,2000);
-setTimeout(()=>document.body.classList.add("open"),2300);
-setTimeout(()=>document.getElementById("intro").remove(),3500);
+// Reveal app after final lock
+setTimeout(()=>{
+  document.getElementById("intro").style.opacity = 0;
+}, word.length * 180 + 1200);
 
-/* ===== RECON FUNCTIONALITY (UNCHANGED) ===== */
+setTimeout(()=>{
+  document.getElementById("intro").remove();
+  document.body.classList.add("show");
+}, word.length * 180 + 2000);
+
+/* ================= RECON FUNCTIONALITY ================= */
+
 let map, marker, circle;
 
 async function run(){
-  const t=document.getElementById("target").value;
-  const out=document.getElementById("out");
-  out.textContent="> Connecting...\n> Gathering intelligence...\n";
+  const t = document.getElementById("target").value;
+  const out = document.getElementById("out");
+  out.textContent = "> Connecting...\n> Gathering intelligence...\n";
 
-  const r=await fetch("/api/recon",{
+  const r = await fetch("/api/recon",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({target:t})
   });
 
-  const j=await r.json();
-  out.textContent+=JSON.stringify(j,null,2);
+  const j = await r.json();
+  out.textContent += JSON.stringify(j,null,2);
 
   if(j.geo?.lat && j.geo?.lon){
     if(!map){
-      map=L.map("map").setView([j.geo.lat,j.geo.lon],7);
+      map = L.map("map").setView([j.geo.lat,j.geo.lon],7);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
     }else{
       map.setView([j.geo.lat,j.geo.lon],7);
@@ -247,9 +232,9 @@ async function run(){
       if(circle) map.removeLayer(circle);
     }
 
-    marker=L.marker([j.geo.lat,j.geo.lon]).addTo(map);
-    circle=L.circle([j.geo.lat,j.geo.lon],{
-      radius:j.vpn_likelihood==="High"?90000:45000,
+    marker = L.marker([j.geo.lat,j.geo.lon]).addTo(map);
+    circle = L.circle([j.geo.lat,j.geo.lon],{
+      radius: j.vpn_likelihood==="High"?90000:45000,
       color:"#00ff88",
       fillOpacity:.12
     }).addTo(map);
