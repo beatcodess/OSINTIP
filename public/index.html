@@ -1,83 +1,199 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
-<title>RECON</title>
+<title>RECON // TERMINAL</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&display=swap" rel="stylesheet">
 
 <style>
+:root{
+  --neon:#00fff7;
+  --bg:#05070a;
+  --glass:rgba(10,15,20,.65);
+}
+
+/* RESET */
+*{box-sizing:border-box}
+
+/* BACKGROUND */
 body{
   margin:0;
-  background:url("https://files.catbox.moe/sm4udj.png") center/contain no-repeat fixed #000;
-  color:#fff;
-  font-family:Arial, sans-serif;
+  min-height:100vh;
+  background:
+    linear-gradient(transparent 95%, rgba(0,255,247,.08) 100%),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,255,247,.04) 3px
+    ),
+    var(--bg);
+  color:#eaffff;
+  font-family:"JetBrains Mono", monospace;
+  overflow-x:hidden;
 }
 
+/* ANIMATED GRID */
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  background:
+    linear-gradient(90deg, rgba(0,255,247,.05) 1px, transparent 1px),
+    linear-gradient(rgba(0,255,247,.05) 1px, transparent 1px);
+  background-size:40px 40px;
+  animation:grid 18s linear infinite;
+  pointer-events:none;
+}
+
+@keyframes grid{
+  from{transform:translateY(0)}
+  to{transform:translateY(40px)}
+}
+
+/* CONTAINER */
 #wrap{
-  max-width:520px;
-  margin:40px auto;
-  padding:20px;
-  backdrop-filter: blur(12px);
-  background:rgba(0,0,0,.65);
-  border-radius:14px;
-  box-shadow:0 0 18px rgba(255,255,255,.25);
+  max-width:560px;
+  margin:60px auto;
+  padding:28px;
+  background:var(--glass);
+  backdrop-filter: blur(14px);
+  border-radius:18px;
+  box-shadow:
+    0 0 25px rgba(0,255,247,.25),
+    inset 0 0 30px rgba(0,255,247,.08);
+  position:relative;
 }
 
+/* HEADER */
 h1{
+  margin:0 0 18px;
   text-align:center;
-  text-shadow:0 0 8px #fff;
+  letter-spacing:4px;
+  font-weight:600;
+  color:var(--neon);
+  text-shadow:0 0 12px var(--neon);
 }
 
-input,button{
+/* STATUS DOT */
+h1::after{
+  content:"● ONLINE";
   display:block;
-  width:90%;
-  margin:10px auto;
-  padding:10px;
-  background:#000;
-  color:#fff;
-  border:1px solid #fff;
-  border-radius:6px;
+  font-size:11px;
+  letter-spacing:2px;
+  color:#7dfff9;
+  margin-top:6px;
+  animation:pulse 2s infinite;
 }
 
-button{cursor:pointer}
+@keyframes pulse{
+  0%,100%{opacity:.4}
+  50%{opacity:1}
+}
 
+/* INPUT */
+input{
+  width:100%;
+  padding:14px;
+  background:#020405;
+  color:#eaffff;
+  border:1px solid rgba(0,255,247,.35);
+  border-radius:10px;
+  outline:none;
+  box-shadow:inset 0 0 10px rgba(0,255,247,.15);
+}
+
+/* BUTTON */
+button{
+  width:100%;
+  margin-top:14px;
+  padding:14px;
+  border:none;
+  border-radius:10px;
+  background:linear-gradient(135deg, #00fff7, #008cff);
+  color:#000;
+  font-weight:600;
+  letter-spacing:2px;
+  cursor:pointer;
+  transition:.25s;
+}
+
+button:hover{
+  transform:translateY(-1px);
+  box-shadow:0 0 18px rgba(0,255,247,.8);
+}
+
+/* TERMINAL OUTPUT */
 pre{
-  white-space:pre-wrap;
+  margin-top:18px;
+  padding:16px;
+  min-height:120px;
+  background:#010304;
+  border-radius:10px;
   font-size:13px;
+  line-height:1.5;
+  overflow:auto;
+  box-shadow:inset 0 0 18px rgba(0,255,247,.12);
+  position:relative;
 }
 
+/* SCANLINE */
+pre::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(
+    transparent 90%,
+    rgba(0,255,247,.08) 100%
+  );
+  animation:scan 3s linear infinite;
+  pointer-events:none;
+}
+
+@keyframes scan{
+  from{background-position:0 -100%}
+  to{background-position:0 100%}
+}
+
+/* MAP */
 #map{
   height:260px;
-  margin-top:15px;
-  border-radius:8px;
+  margin-top:18px;
+  border-radius:12px;
+  overflow:hidden;
+  box-shadow:0 0 18px rgba(0,255,247,.25);
 }
 
+/* CREDIT */
 a{
   position:fixed;
-  top:10px;
-  right:15px;
-  color:#fff;
+  top:14px;
+  right:18px;
+  color:var(--neon);
   text-decoration:none;
+  font-size:12px;
+  opacity:.7;
 }
+
+a:hover{opacity:1}
 </style>
 </head>
 
 <body>
 
-<a href="https://guns.lol/beatcodes" target="_blank">beatcodes ✔</a>
+<a href="https://guns.lol/beatcodes" target="_blank">beatcodes</a>
 
 <div id="wrap">
   <h1>RECON</h1>
-  <input id="target" placeholder="Enter IP or Domain">
-  <button onclick="run()">Run Recon</button>
-  <pre id="out"></pre>
+
+  <input id="target" placeholder="TARGET IP / DOMAIN">
+  <button onclick="run()">INITIATE SCAN</button>
+
+  <pre id="out">Awaiting target…</pre>
   <div id="map"></div>
 </div>
-
-<audio autoplay loop>
-  <source src="https://files.catbox.moe/87e8gv.mp3" type="audio/mpeg">
-</audio>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
@@ -85,21 +201,23 @@ let map, marker, circle;
 
 async function run(){
   const t=document.getElementById("target").value;
-  document.getElementById("out").textContent="Running...";
+  const out=document.getElementById("out");
+  out.textContent="> Connecting...\n> Gathering intelligence...\n";
 
   const r=await fetch("/api/recon",{
     method:"POST",
     headers:{"Content-Type":"application/json"},
     body:JSON.stringify({target:t})
   });
+
   const j=await r.json();
-  document.getElementById("out").textContent=JSON.stringify(j,null,2);
+  out.textContent+=JSON.stringify(j,null,2);
 
   if(j.geo?.lat && j.geo?.lon){
     if(!map){
       map=L.map("map").setView([j.geo.lat,j.geo.lon],7);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
-    } else {
+    }else{
       map.setView([j.geo.lat,j.geo.lon],7);
       if(marker) map.removeLayer(marker);
       if(circle) map.removeLayer(circle);
@@ -107,9 +225,9 @@ async function run(){
 
     marker=L.marker([j.geo.lat,j.geo.lon]).addTo(map);
     circle=L.circle([j.geo.lat,j.geo.lon],{
-      radius: j.vpn_likelihood === "High" ? 80000 : 40000,
-      color:"#fff",
-      fillOpacity:0.15
+      radius: j.vpn_likelihood==="High"?90000:45000,
+      color:"#00fff7",
+      fillOpacity:.12
     }).addTo(map);
   }
 }
@@ -117,4 +235,3 @@ async function run(){
 
 </body>
 </html>
-
